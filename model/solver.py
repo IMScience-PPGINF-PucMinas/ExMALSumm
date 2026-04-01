@@ -174,7 +174,7 @@ class Solver:
             scores, attn_weights, _, _  = self.model(frame_features)
             scores = scores.squeeze(0).cpu().numpy().tolist()
             attn_weights = attn_weights.cpu().numpy()
-        return scores, attn_weights
+        return scores, attn_weights, log_probs, value
 
     def _save_attention_weights(self, weights_save_path, video_name, epoch_i, attn_weights):
         """Save attention weights."""
