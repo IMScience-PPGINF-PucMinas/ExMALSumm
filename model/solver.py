@@ -102,16 +102,47 @@ class Solver:
         return loss_history
 
     def _process_batch(self, iterator):
-        """Process a single batch of data."""
         batch_loss = 0
+        alpha = 0.1  # peso do RL (ajustável)
+
         for _ in range(self.config.batch_size):
             frame_features, target = next(iterator)
-            frame_features, target = frame_features.to(self.config.device), target.to(self.config.device)
+            frame_features = frame_features.to(self.config.device)
+            target = target.to(self.config.device)
 
-            output, _ = self.model(frame_features.squeeze(0))
+            # 🔥 FORWARD COM RL
+            output, attn_weights, log_probs, value = self.model(frame_features.squeeze(0))
+
+            # Ajuste de dimensão
             output_adjusted = output.squeeze() if output.dim() > 1 else output.squeeze().mean(dim=1)
 
-            loss = nn.MSELoss()(output_adjusted, target.squeeze(0))
+            # 🎯 LOSS SUPERVISIONADA (original)
+            loss_sup = nn.MSELoss()(output_adjusted, target.squeeze(0))
+
+            # =========================================================
+            # 🎯 REWARD (aproximação diferenciável)
+            # =========================================================
+            with torch.no_grad():
+                reward = -loss_sup.detach()  # quanto menor MSE, maior reward
+
+            # =========================================================
+            # 🎯 ACTOR-CRITIC
+            # =========================================================
+            advantage = reward - value.squeeze()
+
+            # Actor (policy gradient)
+            actor_loss = -(log_probs * advantage.detach()).mean()
+
+            # Critic (value regression)
+            critic_loss = advantage.pow(2).mean()
+
+            rl_loss = actor_loss + critic_loss
+
+            # =========================================================
+            # 🎯 LOSS FINAL
+            # =========================================================
+            loss = loss_sup + alpha * rl_loss
+
             loss.backward()
             batch_loss += loss.item()
 
@@ -143,7 +174,7 @@ class Solver:
         weights_save_path = os.path.join(self.config.score_dir, "weights.h5")
 
         for frame_features, video_name in tqdm(self.test_loader, desc='Evaluate', ncols=80, leave=False):
-            scores, attn_weights = self._evaluate_video(frame_features)
+            scores, attn_weights, _, _  = self._evaluate_video(frame_features)
             out_scores_dict[video_name] = scores
 
             if save_weights:
@@ -155,7 +186,7 @@ class Solver:
         """Evaluate a single video."""
         frame_features = frame_features.view(-1, self.config.input_size).to(self.config.device)
         with torch.no_grad():
-            scores, attn_weights = self.model(frame_features)
+            scores, attn_weights, _, _  = self.model(frame_features)
             scores = scores.squeeze(0).cpu().numpy().tolist()
             attn_weights = attn_weights.cpu().numpy()
         return scores, attn_weights

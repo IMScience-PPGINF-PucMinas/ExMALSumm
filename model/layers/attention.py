@@ -22,7 +22,6 @@ class RLAttentionActorCritic(nn.Module):
     def forward(self, hidden_state, attn_weights):
         B, T, H = hidden_state.shape
 
-        # padding (caso T < max_seq_len)
         if T < self.max_seq_len:
             pad_size = self.max_seq_len - T
             pad = torch.zeros(B, pad_size, device=hidden_state.device)
@@ -39,7 +38,7 @@ class RLAttentionActorCritic(nn.Module):
 
         probs = torch.sigmoid(self.actor(features))       # [B, max_seq_len]
 
-        probs = probs[:, :T]  # corta para tamanho real
+        probs = probs[:, :T]
 
         dist = Bernoulli(probs)
         actions = dist.sample()
