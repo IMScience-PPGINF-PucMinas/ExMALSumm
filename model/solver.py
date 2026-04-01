@@ -12,7 +12,6 @@ from utils.tensorboard_utils import TensorboardWriter
 
 class Solver:
     def __init__(self, config=None, train_loader=None, test_loader=None):
-        """Class that Builds, Trains, and Evaluates the PGL-SUM model."""
         self.model = None
         self.optimizer = None
         self.writer = None
@@ -171,7 +170,7 @@ class Solver:
         """Evaluate a single video."""
         frame_features = frame_features.view(-1, self.config.input_size).to(self.config.device)
         with torch.no_grad():
-            scores, attn_weights = self.model(frame_features)
+            scores, attn_weights, _, _  = self.model(frame_features)
             scores = scores.squeeze(0).cpu().numpy().tolist()
             attn_weights = attn_weights.cpu().numpy()
         return scores, attn_weights
