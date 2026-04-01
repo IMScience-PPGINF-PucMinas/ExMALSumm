@@ -159,7 +159,7 @@ class Solver:
         weights_save_path = os.path.join(self.config.score_dir, "weights.h5")
 
         for frame_features, video_name in tqdm(self.test_loader, desc='Evaluate', ncols=80, leave=False):
-            scores, attn_weights, _, _  = self._evaluate_video(frame_features)
+            scores, attn_weights= self._evaluate_video(frame_features)
             out_scores_dict[video_name] = scores
 
             if save_weights:
@@ -171,10 +171,10 @@ class Solver:
         """Evaluate a single video."""
         frame_features = frame_features.view(-1, self.config.input_size).to(self.config.device)
         with torch.no_grad():
-            scores, attn_weights, _, _  = self.model(frame_features)
+            scores, attn_weights = self.model(frame_features)
             scores = scores.squeeze(0).cpu().numpy().tolist()
             attn_weights = attn_weights.cpu().numpy()
-        return scores, attn_weights, log_probs, value
+        return scores, attn_weights
 
     def _save_attention_weights(self, weights_save_path, video_name, epoch_i, attn_weights):
         """Save attention weights."""
