@@ -264,6 +264,15 @@ def plot_video(video_id, raw_scores, knapsack_mask, gt_mean,
 
     return out_path
 
+def _min_max_normalize(scores, eps=1e-8):
+    scores = np.array(scores, dtype=float)
+    min_val = scores.min()
+    max_val = scores.max()
+
+    if max_val - min_val < eps:
+        return np.zeros_like(scores)
+
+    return (scores - min_val) / (max_val - min_val)
 
 # ---------------------------------------------------------------------------
 # Per-split driver
@@ -337,8 +346,16 @@ def plot_split(split_id, dataset, model_path, epoch_fname,
 
             # --- Model inference ---
             with torch.no_grad():
-                scores_tensor, _, _, _ = model(features)
-                scores = scores_tensor.squeeze(0).cpu().numpy().tolist()
+                scores, _, _, _ = model(features)
+                scores = scores.squeeze(0).cpu().numpy()
+
+            # ----------------------------------
+            # NORMALIZAÇÃO (igual à inferência)
+            # ----------------------------------
+            scores = _min_max_normalize(scores)
+
+            # manter compatibilidade
+            scores = scores.tolist()
 
             # --- Build three signals ---
             raw_scores    = _upsample_scores(scores, positions, n_frames)

@@ -49,6 +49,20 @@ def load_video_data(dataset, data_path, video):
 
     return frame_features, user_summary, sb, n_frames, positions, video_name
 
+# ---------------------------------------------------------------------------
+# Max/min normalization
+# ---------------------------------------------------------------------------
+
+def min_max_normalize(scores, eps=1e-8):
+    scores = np.array(scores, dtype=float)
+    min_val = scores.min()
+    max_val = scores.max()
+    
+    # Evita divisão por zero (caso todos valores sejam iguais)
+    if max_val - min_val < eps:
+        return np.zeros_like(scores)
+    
+    return (scores - min_val) / (max_val - min_val)
 
 # ---------------------------------------------------------------------------
 # Best-epoch selection helpers
@@ -115,7 +129,16 @@ def run_inference(model, data_path, keys, eval_method, save_summary,
 
         with torch.no_grad():
             scores, _, _, _ = model(frame_features)
-            scores = scores.squeeze(0).cpu().numpy().tolist()
+            scores = scores.squeeze(0).cpu().numpy()
+
+        # -------------------------------
+        # MIN-MAX NORMALIZATION (0 → 1)
+        # -------------------------------
+        scores = min_max_normalize(scores)
+
+        # converter para lista (mantém compatibilidade)
+        scores = scores.tolist()
+
 
         summary = generate_summary([sb], [scores], [n_frames], [positions])[0]
         f_score = evaluate_summary(summary, user_summary, eval_method)
