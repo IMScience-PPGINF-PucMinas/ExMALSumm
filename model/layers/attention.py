@@ -46,7 +46,7 @@ class sLSTM(nn.Module):
         self.right_linear = nn.Linear(hidden_dim, hidden_dim)
         self.left_linear = nn.Linear(hidden_dim, hidden_dim)
         self.proj = nn.Linear(hidden_dim, input_size)
-        self.dropout = nn.Dropout(dropout)
+        self.dropout = nn.Dropout2d(dropout)
         self.fc = nn.Linear(input_size, input_size)
         self.res_proj = nn.Sequential(
             nn.Linear(conv_channels, hidden_dim),
@@ -77,8 +77,8 @@ class sLSTM(nn.Module):
         out = self.gn(out)
         out = out.permute(0, 2, 1)
         
-        i_gate = torch.exp(self.i_gate(out))
-        f_gate = torch.exp(self.f_gate(out))
+        i_gate = torch.sigmoid(self.i_gate(out))
+        f_gate = torch.sigmoid(self.f_gate(out))
         o_gate = torch.sigmoid(self.o_gate(out))
         
         m_gate = torch.max(torch.log(f_gate) + self.m_gate, torch.log(i_gate))
@@ -92,7 +92,9 @@ class sLSTM(nn.Module):
         
         out = self.right_linear(out) + self.left_linear(out)
         out = self.proj(out)
+        out = out.permute(0, 2, 1)
         out = self.dropout(out)
+        out = out.permute(0, 2, 1)
         out = self.fc(out)
         return out
 
